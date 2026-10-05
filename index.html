@@ -1,0 +1,291 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Radiation Shielding Calculator</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0b1020;
+      color: #f5f7ff;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+      padding: 24px;
+    }
+    .card {
+      background: #151a2c;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+      border: 1px solid #252b45;
+    }
+    h1 {
+      font-size: 26px;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #a9b0d9;
+      margin-bottom: 18px;
+    }
+    .row {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .field {
+      flex: 1;
+      min-width: 180px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+      color: #c3c9ec;
+    }
+    select, input {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #343b5f;
+      background: #101528;
+      color: #f5f7ff;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: #4f7dff;
+      box-shadow: 0 0 0 1px #4f7dff55;
+    }
+    button {
+      padding: 9px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+      background: #4f7dff;
+      color: #fff;
+      font-weight: 500;
+      transition: background 0.15s, transform 0.05s;
+    }
+    button.secondary {
+      background: #262c46;
+    }
+    button:hover {
+      background: #3c68e0;
+    }
+    button:active {
+      transform: scale(0.98);
+    }
+    .layers {
+      margin-top: 12px;
+      border-top: 1px solid #252b45;
+      padding-top: 10px;
+      font-size: 13px;
+    }
+    .layer-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #20263d;
+      margin: 4px 6px 4px 0;
+      font-size: 12px;
+    }
+    .layer-pill span {
+      margin-right: 6px;
+    }
+    .remove-btn {
+      border: none;
+      background: transparent;
+      color: #ff8b8b;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 2px;
+    }
+    .result {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #101528;
+      border: 1px solid #252b45;
+      font-size: 14px;
+    }
+    .result-main {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+    .result-sub {
+      color: #a9b0d9;
+      font-size: 13px;
+    }
+    .note {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #8f96c0;
+      line-height: 1.4;
+    }
+    a {
+      color: #8fb4ff;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Radiation Shielding Calculator</h1>
+      <div class="subtitle">
+        Gamma attenuation through stacked layers of lead, concrete, and water.<br>
+        Initial intensity is normalized to 1.0 (100% of unshielded Cs‑137 gamma field).
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Material</label>
+          <select id="material">
+            <option value="lead">Lead (μ ≈ 1.2 cm⁻¹)</option>
+            <option value="concrete">Concrete (μ ≈ 0.15 cm⁻¹)</option>
+            <option value="water">Water (μ ≈ 0.09 cm⁻¹)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Thickness (cm)</label>
+          <input type="number" id="thickness" min="0" step="0.1" placeholder="e.g. 10">
+        </div>
+        <div class="field" style="display:flex;align-items:flex-end;gap:8px;">
+          <button id="addLayer">Add layer</button>
+          <button class="secondary" id="clearLayers">Clear</button>
+        </div>
+      </div>
+
+      <div class="layers" id="layersView">
+        No layers added yet.
+      </div>
+
+      <button id="calculate">Calculate final intensity</button>
+
+      <div class="result" id="resultBox" style="display:none;">
+        <div class="result-main" id="resultMain"></div>
+        <div class="result-sub" id="resultSub"></div>
+      </div>
+
+      <div class="note">
+        Uses the attenuation law: <br>
+        <code>I = I₀ · exp(−μx)</code>, with I₀ = 1.0. Each layer multiplies the intensity by <code>exp(−μx)</code>. <br>
+        Try different combinations to see how stacked shielding changes the remaining fraction of the original gamma field.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const mu = {
+      lead: 1.2,
+      concrete: 0.15,
+      water: 0.09
+    };
+
+    let layers = [];
+
+    const materialSelect = document.getElementById('material');
+    const thicknessInput = document.getElementById('thickness');
+    const layersView = document.getElementById('layersView');
+    const resultBox = document.getElementById('resultBox');
+    const resultMain = document.getElementById('resultMain');
+    const resultSub = document.getElementById('resultSub');
+
+    function renderLayers() {
+      if (layers.length === 0) {
+        layersView.textContent = 'No layers added yet.';
+        return;
+      }
+      layersView.innerHTML = 'Layers (in order): ';
+      layers.forEach((layer, index) => {
+        const pill = document.createElement('span');
+        pill.className = 'layer-pill';
+        pill.innerHTML = `
+          <span>${layer.materialLabel}, ${layer.thickness} cm</span>
+          <button class="remove-btn" data-index="${index}">×</button>
+        `;
+        layersView.appendChild(pill);
+      });
+
+      layersView.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const i = parseInt(e.target.getAttribute('data-index'), 10);
+          layers.splice(i, 1);
+          renderLayers();
+        });
+      });
+    }
+
+    document.getElementById('addLayer').addEventListener('click', () => {
+      const material = materialSelect.value;
+      const thickness = parseFloat(thicknessInput.value);
+
+      if (isNaN(thickness) || thickness <= 0) {
+        alert('Enter a positive thickness in cm.');
+        return;
+      }
+
+      const labelMap = {
+        lead: 'Lead',
+        concrete: 'Concrete',
+        water: 'Water'
+      };
+
+      layers.push({
+        material,
+        materialLabel: labelMap[material],
+        thickness
+      });
+
+      thicknessInput.value = '';
+      renderLayers();
+      resultBox.style.display = 'none';
+    });
+
+    document.getElementById('clearLayers').addEventListener('click', () => {
+      layers = [];
+      renderLayers();
+      resultBox.style.display = 'none';
+    });
+
+    document.getElementById('calculate').addEventListener('click', () => {
+      if (layers.length === 0) {
+        alert('Add at least one shielding layer.');
+        return;
+      }
+
+      let I = 1.0; // normalized initial intensity
+      layers.forEach(layer => {
+        const m = layer.material;
+        const muVal = mu[m];
+        I *= Math.exp(-muVal * layer.thickness);
+      });
+
+      const percent = I * 100;
+
+      resultMain.textContent = `Final intensity: ${I.toExponential(4)} (fraction of original)`;
+      resultSub.textContent =
+        `This is about ${percent.toFixed(3)}% of the unshielded gamma field. ` +
+        `Shielding reduces intensity by ${(100 - percent).toFixed(3)}%.`;
+
+      resultBox.style.display = 'block';
+    });
+
+    renderLayers();
+  </script>
+</body>
+</html>
+
+```
